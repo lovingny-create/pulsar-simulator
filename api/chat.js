@@ -1,43 +1,43 @@
 export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  if (req.method !== 'POST') {
+    return res.status(200).json({ text: "🚨 허용되지 않은 요청입니다." });
+  }
 
   const { prompt, systemInstruction } = req.body;
   const apiKey = process.env.GEMINI_API_KEY;
 
-  if (!apiKey) return res.status(500).json({ error: 'API 키가 없습니다.' });
+  if (!apiKey) {
+    return res.status(200).json({ text: "🚨 Vercel 금고에 GEMINI_API_KEY가 없습니다!" });
+  }
 
   try {
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
+        contents: [{ parts: [{ text: prompt || "안녕" }] }],
         systemInstruction: { parts: [{ text: systemInstruction || "천체물리 전문가" }] }
       })
     });
 
     const data = await response.json();
 
-    // 1. 구글 API 자체 에러 확인
+    // 🚨 핵심: 구글이 에러를 뱉으면, 숨기지 말고 무조건 화면에 텍스트로 띄워버립니다!
     if (data.error) {
-      return res.status(500).json({ error: data.error.message });
+      return res.status(200).json({ text: `🚨 구글 API 거절 원인: ${data.error.message}` });
     }
 
-    // 2. 답변 내용이 있는지 안전하게 확인 (이 부분이 500 에러의 주범일 확률이 높음)
     const candidate = data.candidates?.[0];
-    const text = candidate?.content?.parts?.[0]?.text;
+    const textValue = candidate?.content?.parts?.[0]?.text;
 
-    if (!text) {
-      // 답변이 차단되었거나 비어있을 경우의 처리
-      const reason = candidate?.finishReason || "Unknown reason";
-      return res.status(200).json({ text: `AI가 답변을 생성할 수 없습니다. (사유: ${reason})` });
+    if (!textValue) {
+      return res.status(200).json({ text: `🚨 빈 답변입니다. (차단 사유: ${candidate?.finishReason})` });
     }
 
-    // 3. 깨끗하게 텍스트 정제 후 전송
-    const cleanText = text.replace(/\*\*/g, "").replace(/#/g, "").replace(/`/g, "").trim();
+    const cleanText = textValue.replace(/\*\*/g, "").replace(/#/g, "").replace(/`/g, "").trim();
     return res.status(200).json({ text: cleanText });
 
   } catch (error) {
-    return res.status(500).json({ error: '서버 내부 오류: ' + error.message });
+    return res.status(200).json({ text: `🚨 서버 충돌 원인: ${error.message}` });
   }
 }
