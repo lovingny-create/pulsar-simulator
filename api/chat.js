@@ -1,17 +1,12 @@
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const { prompt, systemInstruction } = req.body;
-  const apiKey = process.env.GEMINI_API_KEY; 
+  const apiKey = process.env.GEMINI_API_KEY;
 
-  if (!apiKey) {
-    return res.status(500).json({ error: 'Vercel 설정에 GEMINI_API_KEY가 없습니다.' });
-  }
+  if (!apiKey) return res.status(500).json({ error: 'API 키가 없습니다.' });
 
   try {
-    // 모델명을 가장 안정적인 gemini-1.5-flash로 변경 (선택 사항이나 권장)
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -22,16 +17,27 @@ export default async function handler(req, res) {
     });
 
     const data = await response.json();
-    
+
+    // 1. 구글 API 자체 에러 확인
     if (data.error) {
       return res.status(500).json({ error: data.error.message });
     }
 
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "답변 실패";
+    // 2. 답변 내용이 있는지 안전하게 확인 (이 부분이 500 에러의 주범일 확률이 높음)
+    const candidate = data.candidates?.[0];
+    const text = candidate?.content?.parts?.[0]?.text;
+
+    if (!text) {
+      // 답변이 차단되었거나 비어있을 경우의 처리
+      const reason = candidate?.finishReason || "Unknown reason";
+      return res.status(200).json({ text: `AI가 답변을 생성할 수 없습니다. (사유: ${reason})` });
+    }
+
+    // 3. 깨끗하게 텍스트 정제 후 전송
     const cleanText = text.replace(/\*\*/g, "").replace(/#/g, "").replace(/`/g, "").trim();
-    
     return res.status(200).json({ text: cleanText });
+
   } catch (error) {
-    return res.status(500).json({ error: '통신 오류: ' + error.message });
+    return res.status(500).json({ error: '서버 내부 오류: ' + error.message });
   }
 }
