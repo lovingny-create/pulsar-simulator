@@ -4,23 +4,20 @@ export default async function handler(req, res) {
   }
 
   const { prompt, systemInstruction } = req.body;
-  
-  // Vercel 설정에 등록한 'GEMINI_API_KEY'라는 이름의 열쇠를 가져옵니다.
   const apiKey = process.env.GEMINI_API_KEY; 
 
   if (!apiKey) {
-    return res.status(500).json({ 
-      error: 'Vercel 설정에 GEMINI_API_KEY가 등록되지 않았습니다.' 
-    });
+    return res.status(500).json({ error: 'Vercel 설정에 GEMINI_API_KEY가 없습니다.' });
   }
 
   try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+    // 모델명을 가장 안정적인 gemini-1.5-flash로 변경 (선택 사항이나 권장)
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        systemInstruction: { parts: [{ text: systemInstruction || "당신은 천체물리학 전문가입니다." }] }
+        systemInstruction: { parts: [{ text: systemInstruction || "천체물리 전문가" }] }
       })
     });
 
@@ -30,12 +27,11 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: data.error.message });
     }
 
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "답변을 가져오지 못했습니다.";
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "답변 실패";
     const cleanText = text.replace(/\*\*/g, "").replace(/#/g, "").replace(/`/g, "").trim();
     
-    res.status(200).json({ text: cleanText });
-
+    return res.status(200).json({ text: cleanText });
   } catch (error) {
-    res.status(500).json({ error: '서버 통신 오류: ' + error.message });
+    return res.status(500).json({ error: '통신 오류: ' + error.message });
   }
 }
