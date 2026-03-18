@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>펄사 시뮬레이터 — 과학고 심화 학습용</title>
+  <style>
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+    html, body { width:100%; height:100%; overflow:hidden; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #05050f;
+      color: #ccd8f0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── HEADER ── */
+    header {
+      background: linear-gradient(135deg, #0c0c2a, #050510);
+      border-bottom: 1px solid #1a2a5a;
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+    .hdr-star {
+      width: 24px; height: 24px; border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #fff, #70d8ff, #2050c0);
+      box-shadow: 0 0 15px #00c8ff;
+    }
+    .hdr-text h1 { font-size: 18px; color: #60c8ff; }
+
+    /* ── LAYOUT ── */
+    .layout {
+      display: flex;
+      flex: 1;
+      padding: 12px;
+      gap: 12px;
+      overflow: hidden;
+    }
+
+    /* ── LEFT PANEL ── */
+    .left {
+      width: 360px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      overflow-y: auto;
+      padding-right: 5px;
+    }
+    .left::-webkit-scrollbar { width: 5px; }
+    .left::-webkit-scrollbar-thumb { background: #1a2a5a; border-radius: 10px; }
+
+    .card {
+      background: rgba(15, 15, 40, 0.8);
+      border: 1px solid #1e3070;
+      border-radius: 12px;
+      padding: 16px;
+    }
+    .card h2 {
+      font-size: 13px; color: #6090e0; margin-bottom: 12px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .card h2::before {
+      content: ''; width: 4px; height: 12px; background: #00c8ff; border-radius: 2px;
+    }
+
+    /* Preset Select */
+    #preset-select {
+      width: 100%;
+      background: #0c0c2a;
+      border: 1px solid #3a3a70;
+      color: #00c8ff;
+      padding: 8px;
+      border-radius: 6px;
+      font-size: 13px;
+      margin-bottom: 10px;
+      outline: none;
+    }
+
+    .sg { margin-bottom: 15px; }
+    .sg-top { display: flex; justify-content: space-between; margin-bottom: 6px; }
+    .sg-name { font-size: 13px; font-weight: 600; }
+    .sg-val { color: #f0c040; font-weight: 700; font-family: monospace; }
+    
+    input[type=range] {
+      width: 100%; height: 5px; cursor: pointer; accent-color: #00c8ff;
+    }
+
+    /* AI CARD */
+    .ai-card { background: linear-gradient(145deg, rgba(20, 20, 50, 0.7), rgba(10, 10, 30, 0.9)); border: 1px solid #3a3a70; }
+    .btn-action {
+      width: 100%; padding: 9px; background: #2a2a60; border: 1px solid #4a4a90; border-radius: 8px;
+      color: #b0c0f0; font-weight: 600; cursor: pointer; display: flex; align-items: center;
+      justify-content: center; gap: 8px; transition: all 0.2s; font-size: 12px; margin-top: 10px;
+    }
+    .btn-action:hover { background: #3a3a80; color: white; border-color: #00c8ff; }
+    .btn-action:disabled { background: #111; color: #444; cursor: not-allowed; }
+    
+    .btn-download { background: #1a4a6a; border-color: #2a6a8a; color: #c0e0f0; margin-top: 12px; }
+
+    .ai-input-wrapper { margin-top: 12px; display: flex; gap: 5px; }
+    #ai-user-input { flex: 1; background: rgba(0, 0, 0, 0.4); border: 1px solid #3a3a70; border-radius: 6px; padding: 8px; color: white; font-size: 12px; outline: none; }
+    #ai-ask-btn { padding: 0 14px; background: #4a208a; border: none; border-radius: 6px; color: white; cursor: pointer; font-weight: 600; }
+
+    #ai-response {
+      margin-top: 10px; padding: 12px; background: rgba(0, 0, 0, 0.3); border-radius: 8px;
+      font-size: 13px; line-height: 1.6; color: #b0b0e0; max-height: 250px; overflow-y: auto;
+      display: none; border-left: 3px solid #00c8ff;
+    }
+
+    .loading-dots::after { content: '.'; animation: dots 1.5s steps(5, end) infinite; }
+    @keyframes dots { 0%, 20% { content: '.'; } 40% { content: '..'; } 60% { content: '...'; } 80%, 100% { content: ''; } }
+
+    /* ── RIGHT PANEL ── */
+    .right { flex: 1; display: flex; flex-direction: column; gap: 12px; }
+    .viz-container { flex: 1; background: #08081a; border: 1px solid #1e3070; border-radius: 12px; position: relative; display: flex; }
+    #anim-box { width: 40%; border-right: 1px solid #152050; position: relative; }
+    #animCanvas { width: 100%; height: 100%; display: block; }
+    #graph-box { flex: 1; position: relative; }
+    #lcCanvas { width: 100%; height: 100%; display: block; }
+
+    .time-dilation-info {
+      position: absolute; bottom: 40px; left: 15px; font-size: 11px;
+      color: #ff9d00; background: rgba(0,0,0,0.6); padding: 4px 8px; border-radius: 4px;
+      display: none;
+      border: 1px solid rgba(255, 157, 0, 0.3);
+    }
+
+    .recv-msg {
+      position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+      background: rgba(255, 230, 0, 0.2); border: 1px solid #ffe600; color: #ffe600;
+      padding: 5px 15px; border-radius: 20px; font-weight: 700; font-size: 13px; opacity: 0;
+    }
+
+    .label-overlay { position: absolute; bottom: 10px; font-size: 11px; color: #4a5a8a; width: 100%; text-align: center; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="hdr-star"></div>
+  <div class="hdr-text">
+    <h1>펄사(Pulsar) 관측 시뮬레이터</h1>
+  </div>
+</header>
+
+<div class="layout">
+  <div class="left">
+    <!-- AI 카드 - 최상단 -->
+    <div class="card ai-card">
+      <h2>✨ AI 천체물리 전문가</h2>
+      <div class="info-box">펄사에 관해서 무엇이든 물어보세요.</div>
+      <div class="ai-input-wrapper">
+        <input type="text" id="ai-user-input" placeholder="질문 예: 자기 쌍극자 복사란?">
+        <button id="ai-ask-btn">질문</button>
+      </div>
+      <button class="btn-action" id="ai-analyze-btn">🔍 현재 관측자료 분석</button>
+      <div id="ai-response"></div>
+    </div>
+
+    <!-- 실험 조절 (Control) -->
+    <div class="card">
+      <h2>Control</h2>
+      <div class="sg">
+        <div class="sg-top">
+          <span class="sg-name">⏱ 자전 주기 (P)</span>
+          <span class="sg-val"><span id="v-P">1.0</span> <span id="u-P">s</span></span>
+        </div>
+        <input type="range" id="s-P" min="1" max="3000" value="1000">
+      </div>
+      <div class="sg">
+        <div class="sg-top">
+          <span class="sg-name">📡 빔 개방각 (Width)</span>
+          <span class="sg-val"><span id="v-W">10</span> %</span>
+        </div>
+        <input type="range" id="s-W" min="1" max="30" value="10">
+      </div>
+      <div class="sg">
+        <div class="sg-top">
+          <span class="sg-name">🔊 신호 대 잡음비 (Noise)</span>
+          <span class="sg-val"><span id="v-N">5</span> %</span>
+        </div>
+        <input type="range" id="s-N" min="0" max="50" value="5">
+      </div>
+      <button class="btn-action btn-download" id="download-btn">📊 그래프 데이터 다운로드 (PNG)</button>
+    </div>
+
+    <!-- 대표 펄사 라이브러리 -->
+    <div class="card">
+      <h2>대표 펄사 라이브러리</h2>
+      <select id="preset-select">
+        <option value="custom">── 직접 설정 ──</option>
+        <option value="standard" selected>가상 표준 펄사</option>
+        <option value="crab">게 성운 펄사 (Crab Pulsar)</option>
+        <option value="vela">벨라 펄사 (Vela Pulsar)</option>
+        <option value="lgm1">LGM-1 (최초 발견 펄사)</option>
+        <option value="msp">밀리초 펄사 (MSP)</option>
+      </select>
+      <div id="preset-info" class="info-box" style="font-size: 11px; color: #7080b0;">
+        선택한 펄사의 실제 관측 데이터를 불러옵니다.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="info-box" style="font-size: 12px; color: #8090c0; line-height: 1.6;">
+        <strong>펄사(Pulsar)</strong>는 강한 자기장을 가진 중성자별입니다. 자전축과 어긋난 자기축을 통해 방출되는 에너지가 지구를 향할 때마다 규칙적인 펄스가 관측됩니다.
+      </div>
+    </div>
+  </div>
+
+  <div class="right">
+    <div class="viz-container">
+      <div id="anim-box">
+        <canvas id="animCanvas"></canvas>
+        <div class="label-overlay">자기 쌍극자 회전 모형</div>
+        <div id="recv-msg" class="recv-msg">⚡ 전파 검출!</div>
+        <div id="time-dilation-info" class="time-dilation-info">🕒 시간 확장 적용됨</div>
+      </div>
+      <div id="graph-box">
+        <canvas id="lcCanvas"></canvas>
+        <div class="label-overlay">실시간 광도 시계열 (Flux Timeline)</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ─── 프리셋 데이터 ───
+  const PRESETS = {
+    standard: { p: 1000, w: 10, n: 5, desc: "이론적 학습을 위해 설계된 가상의 표준 모델입니다. 모든 관측 데이터의 비교 기준이 됩니다." },
+    crab: { p: 33, w: 5, n: 12, desc: "초신성 잔해 속의 젊은 펄사입니다. 매우 빠르게 자전합니다." },
+    vela: { p: 89, w: 8, n: 15, desc: "지구에서 가까운 젊은 펄사 중 하나입니다." },
+    lgm1: { p: 1337, w: 4, n: 4, desc: "1967년 최초로 발견된 펄사입니다. 발견 당시 LGM(외계인)이라는 별명이 붙었습니다." },
+    msp: { p: 1.5, w: 15, n: 20, desc: "밀리초 펄사입니다. 자전 속도가 극한에 달하여 시각적 분석을 위해 애니메이션 속도를 대폭 늦춰서 표시합니다." }
+  };
+
+  let P_ms = 1000;
+  let W_pct = 10;
+  let noise_pct = 5;
+
+  const animCanvas = document.getElementById('animCanvas');
+  const lcCanvas = document.getElementById('lcCanvas');
+  const animCtx = animCanvas.getContext('2d');
+  const lcCtx = lcCanvas.getContext('2d');
+  const recvMsg = document.getElementById('recv-msg');
+  const dilationInfo = document.getElementById('time-dilation-info');
+  const aiResponseDiv = document.getElementById('ai-response');
+  const aiInput = document.getElementById('ai-user-input');
+
+  function resize() {
+    animCanvas.width = animCanvas.clientWidth;
+    animCanvas.height = animCanvas.clientHeight;
+    lcCanvas.width = lcCanvas.clientWidth;
+    lcCanvas.height = lcCanvas.clientHeight;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  const stars = Array.from({length: 40}, () => ({ x: Math.random(), y: Math.random(), r: Math.random() * 1.2 }));
+
+  function getLuminosity(angle) {
+    let a = ((angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+    if (a > Math.PI) a -= Math.PI * 2;
+    const sigma = (W_pct / 100) * Math.PI * 0.4;
+    const baseL = Math.exp(-(a * a) / (2 * sigma * sigma)) * 100;
+    const n = (Math.random() - 0.5) * noise_pct * 2;
+    return Math.max(0, baseL + n);
+  }
+
+  let simTime = 0;
+  let lastTime = 0;
+  const history = [];
+
+  function animate(time) {
+    const dt = (time - lastTime) / 1000;
+    lastTime = time;
+    if (dt > 0.1) { requestAnimationFrame(animate); return; }
+
+    let visualFactor = 1.0;
+    if (P_ms < 100) {
+      visualFactor = P_ms / 1000;
+      dilationInfo.style.display = "block";
+      dilationInfo.innerText = `🕒 시간 확장: ${(1/visualFactor).toFixed(0)}배 느림`;
+    } else {
+      dilationInfo.style.display = "none";
+    }
+
+    simTime += dt;
+    const animAngle = (simTime / (P_ms / 1000 / visualFactor)) * Math.PI * 2;
+    const currentAngle = (simTime / (P_ms / 1000)) * Math.PI * 2;
+    const currentL = getLuminosity(currentAngle);
+
+    history.push({ t: simTime, l: currentL });
+    if (history.length > 800) history.shift();
+
+    drawPulsar(animAngle, currentL);
+    drawGraph();
+
+    recvMsg.style.opacity = currentL > 30 ? "1" : "0";
+    requestAnimationFrame(animate);
+  }
+
+  function drawPulsar(angle, lum) {
+    const ctx = animCtx, w = animCanvas.width, h = animCanvas.height;
+    const cx = w * 0.4, cy = h * 0.5;
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = "rgba(255,255,255,0.6)";
+    stars.forEach(s => { ctx.beginPath(); ctx.arc(s.x * w, s.y * h, s.r, 0, Math.PI*2); ctx.fill(); });
+
+    const beamLen = w * 0.35;
+    ctx.save();
+    ctx.translate(cx, cy); ctx.rotate(angle);
+    const grad = ctx.createLinearGradient(0, 0, beamLen, 0);
+    const alpha = 0.1 + (lum / 100) * 0.9;
+    grad.addColorStop(0, `rgba(100, 220, 255, ${alpha})`);
+    grad.addColorStop(1, "transparent");
+    ctx.fillStyle = grad;
+    const halfW = (W_pct / 100) * Math.PI * 0.6;
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, beamLen, -halfW, halfW); ctx.closePath(); ctx.fill();
+    ctx.rotate(Math.PI);
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, beamLen, -halfW, halfW); ctx.closePath(); ctx.fill();
+    ctx.restore();
+
+    const grd = ctx.createRadialGradient(cx, cy, 2, cx, cy, 14);
+    grd.addColorStop(0, "white"); grd.addColorStop(1, "#3060e0");
+    ctx.fillStyle = grd; ctx.beginPath(); ctx.arc(cx, cy, 10, 0, Math.PI*2); ctx.fill();
+    const ex = w * 0.85;
+    ctx.fillStyle = "#4080ff"; ctx.beginPath(); ctx.arc(ex, cy, 9, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = "white"; ctx.font = "11px sans-serif"; ctx.fillText("지구", ex - 12, cy + 25);
+  }
+
+  function drawGraph() {
+    const ctx = lcCtx, w = lcCanvas.width, h = lcCanvas.height, pad = 40;
+    ctx.clearRect(0, 0, w, h);
+    ctx.strokeStyle = "#304070";
+    ctx.beginPath(); ctx.moveTo(pad, pad); ctx.lineTo(pad, h - pad); ctx.lineTo(w - pad, h - pad); ctx.stroke();
+    if (history.length < 2) return;
+    ctx.strokeStyle = "#00c8ff"; ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    const timeWin = Math.max(2, (P_ms / 1000) * 5);
+    const now = simTime;
+    history.forEach((d, i) => {
+      const x = w - pad - ((now - d.t) / timeWin) * (w - pad * 2);
+      const y = h - pad - (d.l / 120) * (h - pad * 2);
+      if (x < pad) return;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+  }
+
+  const sP = document.getElementById('s-P');
+  const vP = document.getElementById('v-P');
+  const uP = document.getElementById('u-P');
+
+  function updateParams() {
+    P_ms = parseFloat(sP.value);
+    W_pct = parseInt(document.getElementById('s-W').value);
+    noise_pct = parseInt(document.getElementById('s-N').value);
+    
+    if (P_ms >= 1000) {
+      vP.innerText = (P_ms / 1000).toFixed(2);
+      uP.innerText = "s";
+    } else {
+      vP.innerText = P_ms.toFixed(1);
+      uP.innerText = "ms";
+    }
+    document.getElementById('v-W').innerText = W_pct;
+    document.getElementById('v-N').innerText = noise_pct;
+  }
+
+  sP.oninput = () => { updateParams(); document.getElementById('preset-select').value = 'custom'; };
+  document.getElementById('s-W').oninput = () => { updateParams(); document.getElementById('preset-select').value = 'custom'; };
+  document.getElementById('s-N').oninput = () => { updateParams(); document.getElementById('preset-select').value = 'custom'; };
+
+  document.getElementById('preset-select').onchange = function() {
+    if (this.value === 'custom') return;
+    const p = PRESETS[this.value];
+    sP.value = p.p;
+    document.getElementById('s-W').value = p.w;
+    document.getElementById('s-N').value = p.n;
+    document.getElementById('preset-info').innerText = p.desc;
+    updateParams();
+  };
+
+  // ─── 다운로드 버튼 핸들러 ───
+  document.getElementById('download-btn').onclick = function() {
+    const exportCanvas = document.createElement('canvas');
+    const eCtx = exportCanvas.getContext('2d');
+    exportCanvas.width = 1000; exportCanvas.height = 600;
+    const w = exportCanvas.width, h = exportCanvas.height;
+    const padX = 80, padY = 60;
+    
+    // 배경 및 격자
+    eCtx.fillStyle = "#08081a"; eCtx.fillRect(0, 0, w, h);
+    eCtx.strokeStyle = "#304070"; eCtx.lineWidth = 1;
+    eCtx.beginPath(); eCtx.moveTo(padX, padY); eCtx.lineTo(padX, h - padY); eCtx.lineTo(w - padX, h - padY); eCtx.stroke();
+    
+    // Y축 눈금 (상대 광도 0.0 ~ 1.0)
+    eCtx.fillStyle = "#ccd8f0"; eCtx.font = "14px Segoe UI, sans-serif"; eCtx.textAlign = "right";
+    for(let i=0; i<=1.0; i+=0.2) {
+      const y = h - padY - (i / 1.2) * (h - padY * 2);
+      eCtx.fillText(i.toFixed(1), padX - 10, y + 5);
+      eCtx.beginPath(); eCtx.moveTo(padX - 5, y); eCtx.lineTo(padX, y); eCtx.stroke();
+    }
+    
+    // X축 눈금 (시간 0 ~ 5)
+    eCtx.textAlign = "center";
+    for(let i=0; i<=5; i++) {
+      const x = padX + (i / 5) * (w - padX * 2);
+      eCtx.fillText(i, x, h - padY + 25);
+      eCtx.beginPath(); eCtx.moveTo(x, h - padY); eCtx.lineTo(x, h - padY + 5); eCtx.stroke();
+    }
+    
+    // 축 이름
+    eCtx.save(); eCtx.translate(30, h/2); eCtx.rotate(-Math.PI/2); eCtx.font = "bold 16px Segoe UI, sans-serif";
+    eCtx.textAlign = "center"; eCtx.fillText("상대 광도", 0, 0); eCtx.restore();
+    eCtx.font = "bold 16px Segoe UI, sans-serif"; eCtx.textAlign = "center";
+    eCtx.fillText("시간 (초)", w/2, h - 15);
+    
+    // 데이터 렌더링
+    if (history.length >= 2) {
+      const now = simTime, timeWin = 5;
+      eCtx.strokeStyle = "#00c8ff"; eCtx.lineWidth = 3; eCtx.beginPath();
+      history.forEach((d, i) => {
+        const x = w - padX - ((now - d.t) / timeWin) * (w - padX * 2);
+        const y = h - padY - ((d.l/100) / 1.2) * (h - padY * 2);
+        if (x < padX) return;
+        if (i === 0) eCtx.moveTo(x, y); else eCtx.lineTo(x, y);
+      });
+      eCtx.stroke();
+    }
+
+    // ─── 우측 상단 실험 정보 추가 ───
+    eCtx.fillStyle = "rgba(180, 200, 240, 0.9)";
+    eCtx.font = "14px Segoe UI, sans-serif";
+    eCtx.textAlign = "right";
+    const infoX = w - 30;
+    const infoY = 30;
+    const pStr = P_ms >= 1000 ? (P_ms / 1000).toFixed(2) + " s" : P_ms.toFixed(1) + " ms";
+    
+    eCtx.fillText(`자전 주기 (P): ${pStr}`, infoX, infoY);
+    eCtx.fillText(`빔 개방각 (Width): ${W_pct}%`, infoX, infoY + 22);
+    eCtx.fillText(`신호 대 잡음비 (Noise): ${noise_pct}%`, infoX, infoY + 44);
+
+    const link = document.createElement('a');
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    link.download = `pulsar_data_${timestamp}.png`;
+    link.href = exportCanvas.toDataURL('image/png');
+    link.click();
+  };
+
+  // ─── Gemini API 통합 ───
+  const apiKey = "";
+  const modelId = "gemini-2.5-flash-preview-09-2025";
+  async function callGemini(prompt, sys) {
+    let retries = 0;
+    while (retries <= 5) {
+      try {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${apiKey}`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], systemInstruction: { parts: [{ text: sys }] } })
+        });
+        const result = await res.json();
+        return result.candidates?.[0]?.content?.parts?.[0]?.text.replace(/\*\*/g, "").replace(/#/g, "").replace(/`/g, "").trim();
+      } catch (err) {
+        if (retries === 5) throw err;
+        await new Promise(r => setTimeout(r, Math.pow(2, retries) * 1000));
+        retries++;
+      }
+    }
+  }
+
+  const expertSys = "너는 과학고 학생들을 가르치는 지구과학 전문가야. 물리적 원리(자기 쌍극자 복사 등)를 포함해 정교하게 설명해줘. 친절함을 유지하고 평문으로만 대답해.";
+  const analysisSys = "너는 지구과학 AI 조수야. 현재 설정된 데이터를 바탕으로 핵심 특징만 짧고 명확하게 설명해줘. 평문으로만 대답해.";
+
+  document.getElementById('ai-analyze-btn').onclick = async function() {
+    this.disabled = true; aiResponseDiv.style.display = "block";
+    aiResponseDiv.innerHTML = "분석 중<span class='loading-dots'></span>";
+    const prompt = `현재 설정: 주기 ${P_ms}ms, 빔폭 ${W_pct}%, 잡음 ${noise_pct}%. 이 데이터를 실제 펄사 모델과 비교해서 핵심만 요약해줘.`;
+    try { const text = await callGemini(prompt, analysisSys); aiResponseDiv.innerHTML = "✨ 분석 결과:<br><br>" + text.replace(/\n/g, "<br>"); }
+    catch { aiResponseDiv.innerHTML = "⚠️ 오류 발생"; } finally { this.disabled = false; }
+  };
+
+  document.getElementById('ai-ask-btn').onclick = async function() {
+    const q = aiInput.value.trim(); if (!q) return;
+    this.disabled = true; aiResponseDiv.style.display = "block";
+    aiResponseDiv.innerHTML = "생각 중<span class='loading-dots'></span>";
+    try { const text = await callGemini(q, expertSys); aiResponseDiv.innerHTML = "✨ 전문가 답변:<br><br>" + text.replace(/\n/g, "<br>"); aiInput.value = ""; }
+    catch { aiResponseDiv.innerHTML = "⚠️ 오류 발생"; } finally { this.disabled = false; }
+  };
+
+  updateParams();
+  requestAnimationFrame(animate);
+</script>
+</body>
+</html>
